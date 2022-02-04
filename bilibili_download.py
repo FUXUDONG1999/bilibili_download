@@ -142,18 +142,22 @@ def merge(video_path: str, audio_path: str, name):
 
 def main():
     try:
+        """
+        注释可以获取一页的数据
+        """
         # 爬取页面信息
         html, result = get(f"https://www.bilibili.com/v/kichiku/guide/?spm_id_from=333.5.b_6b696368696b755f6775696465.3#/all/click/0/1/2022-01-28,2022-02-04")
         # 处理第一个页面
         data = process_html(html)
         print(data)
-        # 获取视频链接，并且下载第一个视频
-        url = data[1]["视频链接"]
+        # # 获取视频链接，并且下载第二个视频
+        # url = data[1]["视频链接"]
         # 获取BV号
-        bv = url[url.rfind("/") + 1:]
-        video, audio, flag = downloadVideo(url, bv)
-        if flag == 0:
-            merge(video, audio, bv)
+        # url = "https://www.bilibili.com/video/BV1p3411E7bi?spm_id_from=333.6.0.0"
+        # bv = url[url.rfind("/") + 1:]
+        # video, audio, flag = downloadVideo(url, bv)
+        # if flag == 0:
+        #     merge(video, audio, bv)
     except Exception as e:
         print(f"request error : {e}")
 

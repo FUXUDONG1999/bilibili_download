@@ -110,21 +110,13 @@ def fileDownload(url, name):
         res = session.get(url=url, headers=headers, verify=False)
         code = res.status_code
         if code == 206:
-            # 响应码为206时更新状态
+            # 响应码为206时更新状态，对视频信息进行拼接
             begin = end + 1
             end = end + 1024 * 512
-        elif code == 416:
-            # 响应码为416时获取数据
-            headers.update({'Range': str(end + 1) + '-'})
-            res = session.get(url=url, headers=headers, verify=False)
-            flag = 1
             with open(name.encode("utf-8").decode("utf-8"), 'ab') as fp:
                 fp.write(res.content)
-            if flag == 1:
-                break
         else:
-            # 其余状态丢弃
-            print(f"错误的响应码{code}")
+            break
 
 
 def merge(video_path: str, audio_path: str, name):

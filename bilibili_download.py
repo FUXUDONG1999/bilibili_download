@@ -1,12 +1,16 @@
 import json
 import os
-from copy import deepcopy
 import subprocess
+import urllib3
+import argparse
 
 from requests_html import *
-import urllib3
+from copy import deepcopy
 
 urllib3.disable_warnings()
+
+# 连接session
+session = requests.Session()
 
 # 请求头
 HEADERS = {
@@ -15,69 +19,54 @@ HEADERS = {
     "Referer": "https://www.bilibili.com/"
 }
 
+session.headers = HEADERS
 
-def get(url: str, script: str = None, proxies: dict = None) -> tuple[HTML, any]:
+
+def get(url: str) -> HTML:
     """
-    进行请求并渲染结果
+    进行请求并渲染结果，这个函数主要是用来获取动态页面，例如使用JavaScript动态加载的页面
     :param url: 请求地址
-    :param script: 是否执行JavaScript脚本
-    :param proxies: 是否使用代理
-    :return: 渲染后的HTML，以及JavaScript执行结果
+    :return: 渲染后的HTML
     """
     # HTMLSession Object
     request = HTMLSession()
     # 创建请求
-    response = request.get(url, proxies=proxies)
+    response = request.get(url)
     # 获取请求后的HTMl
     html: HTML = response.html
     # 进行chromium渲染页面，超时时间1小时，并执行JavaScript脚本
-    result = html.render(timeout=3600.0, script=script)
-    return html, result
+    html.render(timeout=3600.0)
+    return html
 
 
-def process_html(html: HTML) -> list:
+def process_dynamic_page(html: HTML) -> list:
     """
-    处理HTML页面
+    处理动态HTML页面，提取所有的视频链接
     :param html: HTML页面
     :return: 处理后的结果
     """
-    # 获取视频div
-    l_items = html.find("div.l-item")
     # 保存结果
     result = []
-    for item in l_items:
-        # 对标签进行搜索，获取需要的数据
-        a = item.find("a.title", first=True).attrs
-        link = f"https:{a['href']}"
-        title = a["title"]
-        desc = item.find("div.v-desc", first=True).text
-        up_info = item.find("div.up-info", first=True).find("a", first=True).attrs
-        # 封装结果
-        obj = {
-            "视频链接": link,
-            "标题": title,
-            "描述": desc,
-            "up": up_info["title"],
-            "up链接": f"http:{up_info['href']}"
-        }
-        # 添加结果
-        result.append(obj)
-    # 返回结果
+    links = html.absolute_links
+    for link in links:
+        if link.startswith("https://www.bilibili.com/video/"):
+            result.append(link)
     return result
 
 
-def downloadVideo(url: str, bv: str) -> tuple[str, str, int]:
+def get_video_info(url: str) -> tuple[str, str, str]:
     """
-    获取视频，音频链接
+    获取视频，音频链接，视频名称信息
     :param url: 视频链接
-    :param bv: 视频名称
     """
-    session = requests.session()
     # 获取视频信息
-    res = session.get(url=url, headers=HEADERS, verify=False)
+    res = session.get(url=url, verify=False)
     _element = etree.HTML(res.content)
     # 提取视频json字符串
     video_play_info = str(_element.xpath('/html/head/script[4]/text()')[0].encode('utf-8').decode('utf-8'))[20:]
+    # 获取视频名称
+    name = _element.xpath('//*[@id="viewbox_report"]/h1')[0].attrib["title"].replace(" ", "")
+    # 视频链接信息
     video_json = json.loads(video_play_info)
     try:
         # 2018年以后的b站视频由.audio和.video组成 flag=0表示分为音频与视频
@@ -88,21 +77,24 @@ def downloadVideo(url: str, bv: str) -> tuple[str, str, int]:
         print(e)
         video_url = video_json['data']['durl'][0]['url']
         flag = 1
-    if not os.path.exists(bv):
-        os.mkdir(bv)
+    if not os.path.exists(name):
+        os.mkdir(name)
     # 下载视频文件
-    video_path = f"{bv}/{bv}_Video.mp4"
-    fileDownload(video_url, video_path, session)
+    video_path = f"{name}/{name}_Video.mp4"
+    fileDownload(video_url, video_path)
     audio_path = ""
     # 下载音频文件
     if flag == 0:
         audio_url = video_json['data']['dash']['audio'][0]['baseUrl']
-        audio_path = f"{bv}/{bv}_Audio.mp3"
-        fileDownload(audio_url, audio_path, session)
-    return video_path, audio_path, flag
+        audio_path = f"{name}/{name}_Audio.mp3"
+        fileDownload(audio_url, audio_path)
+    return video_path, audio_path, name
 
 
-def fileDownload(url, name, session):
+def fileDownload(url, name):
+    """
+    进行文件下载
+    """
     # 添加请求头键值对,写上 refered:请求来源
     # 发送option请求服务器分配资源
     session.options(url=url, verify=False)
@@ -110,7 +102,7 @@ def fileDownload(url, name, session):
     begin = 0
     end = 1024 * 10 * 512 - 1
     flag = 0
-    # 深拷贝请求头
+    # 拷贝请求头
     headers = deepcopy(HEADERS)
     while True:
         # 添加请求头键值对,写上 range:请求字节范围
@@ -127,39 +119,59 @@ def fileDownload(url, name, session):
             flag = 1
         with open(name.encode("utf-8").decode("utf-8"), 'ab') as fp:
             fp.write(res.content)
-            fp.flush()
         if flag == 1:
-            fp.close()
             break
 
 
 def merge(video_path: str, audio_path: str, name):
-    subprocess.call(("ffmpeg -i " + video_path + " -i " + audio_path + " -c copy " + f"{name}.mp4").encode("utf-8").decode("utf-8"), shell=True)
+    subprocess.call(("ffmpeg -i " + video_path + " -i " + audio_path + " -c copy " + f"{name}.mp4").encode("utf-8").decode("utf-8"), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     os.remove(video_path)
     os.remove(audio_path)
     os.removedirs(name)
 
 
+def download(url: str):
+    """
+    下载视频，
+    """
+    print(f"current url : {url}")
+    merge(*get_video_info(url))
+
+
+def multi_download(urls: list, pool_size: int = 20):
+    """
+    开启10个线程同时下载10个视频资源
+    """
+    with ThreadPoolExecutor(max_workers=pool_size) as pool:
+        pool.map(partial(download), urls)
+    print("done")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="B站下载工具")
+    parser.add_argument("-u", "--url", metavar="https://www.bilibili.com/videos/BVXXXXX", type=str, help="需要下载的URL")
+    parser.add_argument("-s", "--urls", metavar="https://www.bilibili.com/videos/BVXXXXX1 https://www.bilibili.com/videos/BVXXXXX2", type=str, nargs="*", help="需要下载的URL")
+    parser.add_argument("-p", "--page", metavar="https://www.bilibili.com/", type=str, help="需要下载的一页数据")
+    parser.add_argument("-m", "--pages", metavar="https://www.bilibili.com/1 https://www.bilibili.com/2", type=str, nargs="*", help="需要下载的多页数据")
+    return parser.parse_args().__dict__
+
+
 def main():
-    try:
-        """
-        注释可以获取一页的数据
-        """
-        # 爬取页面信息
-        html, result = get(f"https://www.bilibili.com/v/kichiku/guide/?spm_id_from=333.5.b_6b696368696b755f6775696465.3#/all/click/0/1/2022-01-28,2022-02-04")
-        # 处理第一个页面
-        data = process_html(html)
-        print(data)
-        # # 获取视频链接，并且下载第二个视频
-        # url = data[1]["视频链接"]
-        # 获取BV号
-        # url = "https://www.bilibili.com/video/BV1p3411E7bi?spm_id_from=333.6.0.0"
-        # bv = url[url.rfind("/") + 1:]
-        # video, audio, flag = downloadVideo(url, bv)
-        # if flag == 0:
-        #     merge(video, audio, bv)
-    except Exception as e:
-        print(f"request error : {e}")
+    """
+    注释可以获取一页的数据
+    """
+    args = parse_args()
+    if args["url"]:
+        download(args["url"])
+    elif args["urls"]:
+        multi_download(args["urls"])
+    elif args["page"]:
+        multi_download(process_dynamic_page(get(args["page"])))
+    elif args["pages"]:
+        for page in args["pages"]:
+            multi_download(process_dynamic_page(get(page)))
+    else:
+        print("空参数")
 
 
 if __name__ == '__main__':

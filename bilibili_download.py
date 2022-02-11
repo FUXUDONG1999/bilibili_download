@@ -150,7 +150,7 @@ def parse_args():
     parser.add_argument("-s", "--urls", metavar="https://www.bilibili.com/videos/BVXXXXX1 https://www.bilibili.com/videos/BVXXXXX2", type=str, nargs="*", help="需要下载的URL")
     parser.add_argument("-p", "--page", metavar="https://www.bilibili.com/", type=str, help="需要下载的一页数据")
     parser.add_argument("-m", "--pages", metavar="https://www.bilibili.com/1 https://www.bilibili.com/2", type=str, nargs="*", help="需要下载的多页数据")
-    parser.add_argument("-z", "--size", metavar="N", type=int, help="线程池大小")
+    parser.add_argument("-z", "--size", metavar="N", type=int, default=10, help="线程池大小")
     return parser.parse_args().__dict__
 
 
@@ -161,13 +161,13 @@ def main():
     args = parse_args()
     if args["url"]:
         download(args["url"])
-    elif args["urls"]:
+    if args["urls"]:
         multi_download(args["urls"])
-    elif args["page"]:
-        multi_download(process_dynamic_page(get(args["page"])))
-    elif args["pages"]:
+    if args["page"]:
+        multi_download(process_dynamic_page(get(args["page"])), args["size"])
+    if args["pages"]:
         for page in args["pages"]:
-            multi_download(process_dynamic_page(get(page)))
+            multi_download(process_dynamic_page(get(page)), args["size"])
     else:
         print("空参数")
 

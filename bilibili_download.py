@@ -143,7 +143,7 @@ def download(url: str):
     merge(*get_video_info(url))
 
 
-def multi_download(urls: list, pool_size: int = 20):
+def multi_download(urls: list, pool_size: int = 10):
     """
     开启10个线程同时下载10个视频资源
     """
@@ -158,6 +158,7 @@ def parse_args():
     parser.add_argument("-s", "--urls", metavar="https://www.bilibili.com/videos/BVXXXXX1 https://www.bilibili.com/videos/BVXXXXX2", type=str, nargs="*", help="需要下载的URL")
     parser.add_argument("-p", "--page", metavar="https://www.bilibili.com/", type=str, help="需要下载的一页数据")
     parser.add_argument("-m", "--pages", metavar="https://www.bilibili.com/1 https://www.bilibili.com/2", type=str, nargs="*", help="需要下载的多页数据")
+    parser.add_argument("-z", "--size", metavar="N", type=int, help="线程池大小")
     return parser.parse_args().__dict__
 
 

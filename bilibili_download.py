@@ -168,8 +168,6 @@ def main():
     if args["pages"]:
         for page in args["pages"]:
             multi_download(process_dynamic_page(get(page)), args["size"])
-    else:
-        print("空参数")
 
 
 if __name__ == '__main__':

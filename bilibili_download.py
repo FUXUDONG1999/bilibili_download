@@ -109,19 +109,23 @@ def fileDownload(url, name):
         headers.update({'Range': 'bytes=' + str(begin) + '-' + str(end)})
         # 获取视频分片
         res = session.get(url=url, headers=headers, verify=False)
-        print(res.status_code)
-        if res.status_code != 416:
-            # 响应码不为为416时有数据
+        code = res.status_code
+        if code == 206:
+            # 响应码为206时更新状态
             begin = end + 1
             end = end + 1024 * 512
-        else:
+        elif code == 416:
+            # 响应码为416时获取数据
             headers.update({'Range': str(end + 1) + '-'})
             res = session.get(url=url, headers=headers, verify=False)
             flag = 1
-        with open(name.encode("utf-8").decode("utf-8"), 'ab') as fp:
-            fp.write(res.content)
-        if flag == 1:
-            break
+            with open(name.encode("utf-8").decode("utf-8"), 'ab') as fp:
+                fp.write(res.content)
+            if flag == 1:
+                break
+        else:
+            # 其余状态丢弃
+            print(f"错误的响应码{code}")
 
 
 def merge(video_path: str, audio_path: str, name):

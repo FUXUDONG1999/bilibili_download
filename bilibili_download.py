@@ -101,7 +101,6 @@ def fileDownload(url, name):
     # 指定每次下载1M的数据
     begin = 0
     end = 1024 * 10 * 512 - 1
-    flag = 0
     # 拷贝请求头
     headers = deepcopy(HEADERS)
     while True:

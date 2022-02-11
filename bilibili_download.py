@@ -115,7 +115,11 @@ def fileDownload(url, name):
             end = end + 1024 * 512
             with open(name.encode("utf-8").decode("utf-8"), 'ab') as fp:
                 fp.write(res.content)
-        else:
+        # 不合法的code在这里登记
+        elif code in [200, 403, 404]:
+            continue
+        elif code == 416:
+            # 416表示下载完成
             break
 
 

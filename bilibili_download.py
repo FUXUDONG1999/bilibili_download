@@ -148,7 +148,7 @@ def multi_download(urls: list, pool_size: int = 10):
     开启10个线程同时下载10个视频资源
     """
     with ThreadPoolExecutor(max_workers=pool_size) as pool:
-        pool.map(partial(download), urls)
+        pool.map(download, urls)
     print("done")
 
 

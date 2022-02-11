@@ -109,6 +109,7 @@ def fileDownload(url, name):
         headers.update({'Range': 'bytes=' + str(begin) + '-' + str(end)})
         # 获取视频分片
         res = session.get(url=url, headers=headers, verify=False)
+        print(res.status_code)
         if res.status_code != 416:
             # 响应码不为为416时有数据
             begin = end + 1
@@ -124,7 +125,7 @@ def fileDownload(url, name):
 
 
 def merge(video_path: str, audio_path: str, name):
-    subprocess.call(("ffmpeg -i " + video_path + " -i " + audio_path + " -c copy " + f"{name}.mp4").encode("utf-8").decode("utf-8"), shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    subprocess.call(("ffmpeg -i " + video_path + " -i " + audio_path + " -c copy " + f"{name}.mp4").encode("utf-8").decode("utf-8"), shell=True)
     os.remove(video_path)
     os.remove(audio_path)
     os.removedirs(name)
